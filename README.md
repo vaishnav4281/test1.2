@@ -1,6 +1,6 @@
 ### ✅ IP Geolocation–Centric README
 
-````markdown
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/vaishnav4281/Domain-scope/main/screenshots/banner.png" alt="IP Intelligence Toolkit" width="100%" />
 </p>
