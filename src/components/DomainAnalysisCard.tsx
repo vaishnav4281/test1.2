@@ -16,6 +16,19 @@ const DomainAnalysisCard = ({ onResults }: DomainAnalysisCardProps) => {
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
 
+  const fetchWithTimeout = async (url: string, timeout = 15000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      return res;
+    } catch (err: any) {
+      clearTimeout(id);
+      throw err;
+    }
+  };
+
   const handleScan = async () => {
     if (!domain.trim()) {
       toast({
@@ -30,7 +43,15 @@ const DomainAnalysisCard = ({ onResults }: DomainAnalysisCardProps) => {
     
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com";
-      const response = await fetch(`${API_BASE}/whois/?domain=${encodeURIComponent(domain.trim())}`);
+      let response: Response;
+      try {
+        response = await fetchWithTimeout(`${API_BASE}/whois/?domain=${encodeURIComponent(domain.trim())}`);
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again later.');
+        }
+        throw err;
+      }
       if (!response.ok) {
         throw new Error(`API responded with status ${response.status}`);
       }
