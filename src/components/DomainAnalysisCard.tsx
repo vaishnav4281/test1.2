@@ -29,7 +29,8 @@ const DomainAnalysisCard = ({ onResults }: DomainAnalysisCardProps) => {
     setIsScanning(true);
     
     try {
-      const response = await fetch(`/api/whois/?domain=${encodeURIComponent(domain.trim())}`);
+      const API_BASE = import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com";
+      const response = await fetch(`${API_BASE}/whois/?domain=${encodeURIComponent(domain.trim())}`);
       if (!response.ok) {
         throw new Error(`API responded with status ${response.status}`);
       }
