@@ -1,19 +1,37 @@
-// src/components/WhoisLookup.js (or anywhere you want)
+// src/components/WhoisLookup.jsx
+import { useEffect, useState } from "react";
 
-const domain = "google.com";
+export default function WhoisLookup({ domain = "google.com" }) {
+  const [whoisData, setWhoisData] = useState(null);
+  const [error, setError] = useState(null);
 
-// API URL using .env variable from Vite
-const apiUrl = `${import.meta.env.VITE_API_BASE}/whois/?domain=${domain}`;
+  useEffect(() => {
+    const apiUrl = `${import.meta.env.VITE_API_BASE}/whois/?domain=${domain}`;
 
-fetch(apiUrl)
-  .then((res) => {
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return res.json();
-  })
-  .then((data) => {
-    console.log("WHOIS Data:", data);
-    // You can now display this in your component
-  })
-  .catch((err) => {
-    console.error("API error:", err);
-  });
+    fetch(apiUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setWhoisData(data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setWhoisData(null);
+      });
+  }, [domain]);
+
+  return (
+    <div style={{ fontFamily: "monospace", padding: "1rem" }}>
+      <h2>WHOIS Lookup for <code>{domain}</code></h2>
+      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+      {whoisData ? (
+        <pre>{JSON.stringify(whoisData, null, 2)}</pre>
+      ) : (
+        <p>Loading...</p>
+      )}
+    </div>
+  );
+}
