@@ -11,6 +11,18 @@ interface BulkScannerCardProps {
 }
 
 const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
+  const fetchWithTimeout = async (url: string, timeout = 15000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      return res;
+    } catch (err: any) {
+      clearTimeout(id);
+      throw err;
+    }
+  };
   const [domains, setDomains] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -47,7 +59,19 @@ const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
       const domain = domainList[i].trim();
 
       try {
-        const response = await fetch(`/api/whois/?domain=${encodeURIComponent(domain)}`);
+        const API_BASE = (() => {
+          const base = import.meta.env.VITE_API_BASE;
+          return base && /^https?:\/\//i.test(base) ? base : "https://whois-aoi.onrender.com";
+        })();
+        let response: Response;
+        try {
+          response = await fetchWithTimeout(`${API_BASE}/whois/?domain=${encodeURIComponent(domain)}`);
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            throw new Error('Request timed out.');
+          }
+          throw err;
+        }
         if (!response.ok) {
           throw new Error(`API responded with status ${response.status}`);
         }
