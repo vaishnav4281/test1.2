@@ -1,9 +1,6 @@
 ### ✅ IP Geolocation–Centric README
 
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/vaishnav4281/Domain-scope/main/screenshots/banner.png" alt="IP Intelligence Toolkit" width="100%" />
-</p>
 
 # 🌍 Domain Scope – IP & Domain Intelligence Toolkit
 
@@ -16,6 +13,9 @@
 > 🌐 An open-source IP & Domain Intelligence Platform with geolocation, WHOIS, DNS, and abuse detection. Powered by FastAPI & React.
 
 ---
+<p align="center">
+<img width="1440" height="1024" alt="Mockup 02" src="https://github.com/user-attachments/assets/03e08e4a-32c6-4700-93bb-d89c464a2bac" />
+</p>  
 
 ## 🔥 Live Demo
 
@@ -24,6 +24,13 @@
 | 🌎 https://domain-scope-three.vercel.app  | ⚙️ https://whois-aoi.onrender.com         |
 
 ---
+<p align="center">
+<img width="1440" height="1024" alt="Mockup 01" src="https://github.com/user-attachments/assets/9ee70a77-9526-4ab7-a3fe-c06d4dfe4536" />
+</p>
+
+
+
+
 
 ## 🔎 Core Features
 
