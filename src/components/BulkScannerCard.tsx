@@ -279,72 +279,59 @@ const BulkScannerCard = ({ onResults, onMetascraperResults, onVirusTotalResults 
             });
           }
         }
-
-        // VirusTotal (optional)
+        // VirusTotal (optional) via serverless proxy
         if (onVirusTotalResults) {
-          const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
-          if (vtApiKey) {
-            try {
-              const vtResponse = await fetch(`https://www.virustotal.com/api/v3/domains/${domain}`, {
-                headers: { 'x-apikey': vtApiKey }
-              });
-              if (vtResponse.ok) {
-                const vtData = await vtResponse.json();
-                const data = vtData.data?.attributes || {};
-                const virusTotalResult = {
-                  id: Date.now() + i + 2,
-                  domain: domain,
-                  timestamp: new Date().toLocaleString(),
-                  reputation: data.reputation || 0,
-                  last_analysis_stats: data.last_analysis_stats || {},
-                  total_votes: data.total_votes || {},
-                  categories: data.categories || {},
-                  popularity_ranks: data.popularity_ranks || {},
-                  whois: data.whois || null,
-                  whois_date: data.whois_date ? new Date(data.whois_date * 1000).toLocaleString() : null,
-                  creation_date: data.creation_date ? new Date(data.creation_date * 1000).toLocaleString() : null,
-                  last_update_date: data.last_update_date ? new Date(data.last_update_date * 1000).toLocaleString() : null,
-                  last_modification_date: data.last_modification_date ? new Date(data.last_modification_date * 1000).toLocaleString() : null,
-                  last_analysis_date: data.last_analysis_date ? new Date(data.last_analysis_date * 1000).toLocaleString() : null,
-                  last_dns_records: data.last_dns_records || [],
-                  last_dns_records_date: data.last_dns_records_date ? new Date(data.last_dns_records_date * 1000).toLocaleString() : null,
-                  last_https_certificate: data.last_https_certificate || null,
-                  last_https_certificate_date: data.last_https_certificate_date ? new Date(data.last_https_certificate_date * 1000).toLocaleString() : null,
-                  tags: data.tags || [],
-                  registrar: data.registrar || null,
-                  jarm: data.jarm || null,
-                  last_analysis_results: data.last_analysis_results || {},
-                  malicious_score: data.last_analysis_stats?.malicious || 0,
-                  suspicious_score: data.last_analysis_stats?.suspicious || 0,
-                  harmless_score: data.last_analysis_stats?.harmless || 0,
-                  undetected_score: data.last_analysis_stats?.undetected || 0,
-                  risk_level: (() => {
-                    const malicious = data.last_analysis_stats?.malicious || 0;
-                    const suspicious = data.last_analysis_stats?.suspicious || 0;
-                    if (malicious > 5) return 'High';
-                    if (malicious > 0 || suspicious > 3) return 'Medium';
-                    if (suspicious > 0) return 'Low';
-                    return 'Clean';
-                  })()
-                };
-                onVirusTotalResults(virusTotalResult);
-              } else {
-                throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
-              }
-            } catch (vtError: any) {
-              onVirusTotalResults({
+          try {
+            const vtResponse = await fetch(`/api/virustotal?domain=${encodeURIComponent(domain)}`);
+            if (vtResponse.ok) {
+              const vtData = await vtResponse.json();
+              const data = vtData.data?.attributes || {};
+              const virusTotalResult = {
                 id: Date.now() + i + 2,
                 domain: domain,
                 timestamp: new Date().toLocaleString(),
-                error: vtError.message || 'Failed to fetch VirusTotal data.'
-              });
+                reputation: data.reputation || 0,
+                last_analysis_stats: data.last_analysis_stats || {},
+                total_votes: data.total_votes || {},
+                categories: data.categories || {},
+                popularity_ranks: data.popularity_ranks || {},
+                whois: data.whois || null,
+                whois_date: data.whois_date ? new Date(data.whois_date * 1000).toLocaleString() : null,
+                creation_date: data.creation_date ? new Date(data.creation_date * 1000).toLocaleString() : null,
+                last_update_date: data.last_update_date ? new Date(data.last_update_date * 1000).toLocaleString() : null,
+                last_modification_date: data.last_modification_date ? new Date(data.last_modification_date * 1000).toLocaleString() : null,
+                last_analysis_date: data.last_analysis_date ? new Date(data.last_analysis_date * 1000).toLocaleString() : null,
+                last_dns_records: data.last_dns_records || [],
+                last_dns_records_date: data.last_dns_records_date ? new Date(data.last_dns_records_date * 1000).toLocaleString() : null,
+                last_https_certificate: data.last_https_certificate || null,
+                last_https_certificate_date: data.last_https_certificate_date ? new Date(data.last_https_certificate_date * 1000).toLocaleString() : null,
+                tags: data.tags || [],
+                registrar: data.registrar || null,
+                jarm: data.jarm || null,
+                last_analysis_results: data.last_analysis_results || {},
+                malicious_score: data.last_analysis_stats?.malicious || 0,
+                suspicious_score: data.last_analysis_stats?.suspicious || 0,
+                harmless_score: data.last_analysis_stats?.harmless || 0,
+                undetected_score: data.last_analysis_stats?.undetected || 0,
+                risk_level: (() => {
+                  const malicious = data.last_analysis_stats?.malicious || 0;
+                  const suspicious = data.last_analysis_stats?.suspicious || 0;
+                  if (malicious > 5) return 'High';
+                  if (malicious > 0 || suspicious > 3) return 'Medium';
+                  if (suspicious > 0) return 'Low';
+                  return 'Clean';
+                })()
+              };
+              onVirusTotalResults(virusTotalResult);
+            } else {
+              throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
             }
-          } else {
+          } catch (vtError: any) {
             onVirusTotalResults({
               id: Date.now() + i + 2,
               domain: domain,
               timestamp: new Date().toLocaleString(),
-              error: 'VirusTotal API key not configured. Add VITE_VIRUSTOTAL_API_KEY to .env file.'
+              error: vtError.message || 'Failed to fetch VirusTotal data.'
             });
           }
         }

@@ -366,6 +366,7 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
         });
       }
       
+<<<<<<< HEAD
       // Fetch VirusTotal data
       const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
       if (vtApiKey) {
@@ -454,19 +455,10 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
             id: Date.now() + 2,
             domain: domain.trim(),
             timestamp: new Date().toLocaleString(),
-            error: vtError.message || 'Failed to fetch VirusTotal data. Check API key or rate limit.'
+            error: vtError.message || 'Failed to fetch VirusTotal data.'
           });
         }
-      } else {
-        // No API key provided
-        onVirusTotalResults({
-          id: Date.now() + 2,
-          domain: domain.trim(),
-          timestamp: new Date().toLocaleString(),
-          error: 'VirusTotal API key not configured. Add VITE_VIRUSTOTAL_API_KEY to .env file.'
-        });
       }
-      
       setIsScanning(false);
       setDomain("");
 
