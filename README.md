@@ -1,143 +1,177 @@
-### ✅ IP Geolocation–Centric README
+#
+<div align="center">
 
+# 🌍 Domain Scope — IP & Domain Intelligence Toolkit
 
+<a href="https://domain-scope-three.vercel.app"><img src="https://img.shields.io/website?down_color=red&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fdomain-scope-three.vercel.app&style=for-the-badge" alt="Live" /></a>
+<a href="https://whois-aoi.onrender.com"><img src="https://img.shields.io/badge/API-Render-blue?style=for-the-badge" alt="API" /></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/vaishnav4281/Domain-scope?style=for-the-badge" alt="License" /></a>
 
-# 🌍 Domain Scope – IP & Domain Intelligence Toolkit
+</div>
 
-<p align="center">
-  <a href="https://domain-scope-three.vercel.app"><img src="https://img.shields.io/website?down_color=red&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fdomain-scope-three.vercel.app&style=for-the-badge" alt="Live Site" /></a>
-  <a href="https://github.com/vaishnav4281/Domain-scope/stargazers"><img src="https://img.shields.io/github/stars/vaishnav4281/Domain-scope?style=for-the-badge" /></a>
-  <a href="https://github.com/vaishnav4281/Domain-scope/blob/main/LICENSE"><img src="https://img.shields.io/github/license/vaishnav4281/Domain-scope?style=for-the-badge" /></a>
-</p>
-
-> 🌐 An open-source IP & Domain Intelligence Platform with geolocation, WHOIS, DNS, and abuse detection. Powered by FastAPI & React.
-
----
-<p align="center">
-<img width="1440" height="1024" alt="Mockup 02" src="https://github.com/user-attachments/assets/03e08e4a-32c6-4700-93bb-d89c464a2bac" />
-</p>  
-
-## 🔥 Live Demo
-
-| Frontend (UI)                              | Backend (API)                             |
-|-------------------------------------------|-------------------------------------------|
-| 🌎 https://domain-scope-three.vercel.app  | ⚙️ https://whois-aoi.onrender.com         |
-
----
-<p align="center">
-<img width="1440" height="1024" alt="Mockup 01" src="https://github.com/user-attachments/assets/9ee70a77-9526-4ab7-a3fe-c06d4dfe4536" />
-</p>
-
-
-
-
-
-## 🔎 Core Features
-
-- 📍 **IP Geolocation Lookup**
-  - Country, region, city, lat/lon
-- 🛡️ **Abuse Score Lookup**
-  - Reports via AbuseIPDB
-- 🌐 **WHOIS Information**
-  - Registrar, dates, DNSSEC
-- 📬 **DNS Record Scanner**
-  - A, MX, AAAA, NS records
-- 🕓 **Domain Age Calculator**
-- 🚀 Modular REST API endpoints
+> 🧠 All‑in‑one OSINT toolkit for domains: WHOIS, DNS, geolocation, abuse risk, metadata, and VirusTotal security — with bulk scanning and CSV export.
 
 ---
 
-## 🧱 Tech Stack
+## ✨ Overview
 
-| Layer      | Stack                              |
-|------------|------------------------------------|
-| Frontend   | React + Vite + Tailwind CSS        |
-| Backend    | FastAPI + Gunicorn                 |
-| APIs Used  | IP2Location, AbuseIPDB, WhoisXML   |
-| Deployment | Vercel (UI), Render (API)          |
+- **WHOIS & DNS**: Registrar, dates, A/MX/NS/AAAA, age
+- **IP Intelligence**: IP, country, region, city, lat/lon, ISP
+- **Risk & Abuse**: AbuseIPDB confidence score (if key provided)
+- **Web Metadata (Metascraper)**: Title, description, images, social cards, JSON‑LD, feeds, more
+- **Security (VirusTotal)**: Vendor detections, reputation, categories, DNS/SSL history, risk level
+- **Bulk Scan + CSV**: Scan multiple domains and export results
 
 ---
 
-## 🐳 Run with Docker
+## 🏆 Why Domain Scope stands out
 
+- **Metascraper+: 30+ fields with quality scoring**
+  - Title, description, OG/Twitter, keywords, favicon/logo, feeds, JSON‑LD
+  - 6 organized tabs and a metadata completeness score
+- **Bulletproof metadata fetching**
+  - Multi‑proxy CORS fallback (allorigins → corsproxy → codetabs) with timeouts
+  - Graceful errors; backend results still work even if proxies fail
+- **Deep security via VirusTotal**
+  - Risk level, malicious/suspicious counts, vendor detections, reputation, categories
+  - DNS/SSL history, JARM, WHOIS snapshot
+- **Bulk scan that actually enriches**
+  - WHOIS/IP/Geo + ISP fallback + AbuseIPDB score (if key), progress tracking
+- **One‑click CSV that won’t break**
+  - Robust CSV escaping for commas, quotes, and newlines
+- **Beautiful, responsive UI with dark mode**
+  - Modern cards, gradients, iconography, and keyboard‑friendly interactions
+
+---
+
+## 🚀 Live
+
+- UI: https://domain-scope-three.vercel.app
+- API: https://whois-aoi.onrender.com
+
+---
+
+## 🧩 Features
+
+- **Backend results card** (WHOIS/DNS/IP/Geo/ISP/Abuse)
+- **Metascraper card** with 6 tabs (Basic, Social, Content, Tech, Media, Schema)
+- **VirusTotal card** with 6 tabs (Security, Detection, Reputation, Categories, DNS/SSL, Info)
+- **Bulk scanner** with progress and optional enrichment
+- **CSV export** for backend results with safe CSV escaping
+- **Dark mode**, responsive UI, modern design
+
+---
+
+## 🛠 Tech Stack
+
+- Frontend: React + Vite + TypeScript + TailwindCSS + shadcn/ui
+- Intelligence: AbuseIPDB, VirusTotal, IP geolocation (from API), Metascraper-style parsing
+- Deploy: Vercel (UI), Render (API)
+
+---
+
+## ⚡ Quick Start
+
+1) Clone & install
 ```bash
-# Backend setup
-cd backend
-cp .env.example .env
-docker build -t domain-api .
-docker run -p 8000:8000 --env-file .env domain-api
-````
-
----
-
-## ⚙️ Local Development
-
-### Backend (FastAPI)
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-### Frontend (Vite + React)
-
-```bash
-cd frontend
-cp .env.example .env  # set VITE_API_BASE
 npm install
 npm run dev
 ```
 
----
-
-## 📦 API Routes
-
-| Route             | Purpose                   |
-| ----------------- | ------------------------- |
-| `/whois/?domain=` | WHOIS info for domain     |
-| `/ipgeo/?ip=`     | IP2Location geolocation   |
-| `/abuse/?ip=`     | AbuseIPDB risk assessment |
-| `/dns/?domain=`   | A, MX, NS, AAAA records   |
-
----
-
-## 📸 Screenshots
-
-| IP Location Lookup         | WHOIS Domain Data          |
-| -------------------------- | -------------------------- |
-| ![](screenshots/ipgeo.png) | ![](screenshots/whois.png) |
-
----
-
-## 📂 Folder Structure
-
-```bash
-Domain-scope/
-├── frontend/       # Vite + React frontend
-├── backend/        # FastAPI microservice API
-│   ├── app/api/    # Routers: whois, ipgeo, dns, abuse
-│   ├── services/   # Logic layer for API calls
-│   └── .env        # API keys and config
-└── README.md
+2) Configure environment (create `.env` in project root)
+```env
+VITE_API_BASE=https://whois-aoi.onrender.com
+VITE_VIRUSTOTAL_API_KEY=your_virustotal_api_key   # optional but recommended
+VITE_ABUSEIPDB_API_KEY=your_abuseipdb_api_key     # optional (improves risk score)
 ```
 
----
-
-## 🙋‍♂️ Author
-
-**Vaishnav K**
-🔗 [LinkedIn](https://www.linkedin.com/in/vaishnav-k-5a15a527b/)
-💻 [GitHub](https://github.com/vaishnav4281)
+3) Open http://localhost:5173 and analyze a domain (e.g., `github.com`).
 
 ---
 
-## 🧠 Ideas for Future
+## 🔑 Environment
 
-* 🔎 Reverse IP & ASN lookups
-* ✈️ Export results (JSON/CSV)
-* 🧩 Plugin support (via API keys)
-* 🧠 Threat scoring & classification
+- `VITE_API_BASE` — Backend WHOIS/DNS API base URL
+- `VITE_VIRUSTOTAL_API_KEY` — Enables VirusTotal security panel
+- `VITE_ABUSEIPDB_API_KEY` — Enables abuse score enrichment (single + bulk)
+
+Restart the dev server after changing `.env`.
+
+---
+
+## 🧭 Usage
+
+- **Single Scan**
+  - Enter a domain in `DomainAnalysisCard` and run scan
+  - Three panels populate: Backend, Metascraper, VirusTotal (if keys set)
+
+- **Bulk Scan**
+  - Open Bulk Scanner, paste or upload `.txt` (one domain per line)
+  - Bulk WHOIS/IP/Geo + ISP enrichment + AbuseIPDB (if key)
+  - Exports appear in the Results panel via “Export CSV” (backend fields)
+
+- **Export CSV**
+  - `ResultsPanel` exports backend results to CSV with proper quoting/escaping
+  - Metadata and VirusTotal panels are visual by default (can be extended)
+
+---
+
+## 📡 API Endpoints (Backend)
+
+| Route               | Purpose                            |
+|---------------------|------------------------------------|
+| `GET /whois/?domain=` | WHOIS, IPs, geolocation, nameservers |
+| `GET /dns/?domain=`   | DNS records (A, AAAA, MX, NS, TXT)    |
+| `GET /ipgeo/?ip=`     | IP geolocation (if provided)          |
+| `GET /abuse/?ip=`     | AbuseIPDB risk (requires API key)     |
+
+VirusTotal is called directly from the client via `https://www.virustotal.com/api/v3/domains/{domain}`.
+
+---
+
+## 🧪 Metascraper (Web Metadata)
+
+- Fetches HTML via a **multi‑proxy fallback** to avoid CORS issues:
+  - allorigins.win → corsproxy.io → codetabs.com (8s timeout each)
+- Extracts 30+ fields: Title, Description, Keywords, OG/Twitter, Feeds, Schema/JSON‑LD, Robots, Generator, Viewport, Theme Color, Favicon/Logo, etc.
+- Computes a “completeness score” as a quick SEO quality indicator.
+
+---
+
+## 🛡️ VirusTotal (Security)
+
+- Shows detection stats, reputation, categories, popularity, DNS/SSL, WHOIS snapshot, JARM, and vendor results.
+- Risk levels: 🟢 Clean, 🟡 Low, 🟠 Medium, 🔴 High.
+- Free tier limits: ~4 req/min, 500/day; add your API key in `.env`.
+
+---
+
+## 🌐 CORS & Reliability
+
+- Metadata fetch uses a multi‑proxy chain with timeouts and graceful errors.
+- Backend WHOIS/DNS panel is not affected by CORS and works independently.
+
+---
+
+## 🧯 Troubleshooting (Quick)
+
+- **No metadata / timeouts**: Proxies busy or site blocks scraping → try again; backend data still works.
+- **VirusTotal errors**: Check `VITE_VIRUSTOTAL_API_KEY`, respect rate limits, restart dev server after `.env` changes.
+- **CSV looks broken**: Now escaped (quotes/newlines/commas). Re‑export from the latest build.
+
+---
+
+## 📁 Project Structure (simplified)
+
+```
+src/
+  components/
+    DomainAnalysisCard.tsx     # Single scan (Backend + Meta + VT)
+    BulkScannerCard.tsx        # Bulk scan (Backend + AbuseIPDB)
+    ResultsPanel.tsx           # Export CSV (backend data)
+    MetascraperResults.tsx     # Web metadata (6 tabs)
+    VirusTotalResults.tsx      # Security analysis (6 tabs)
+```
 
 ---
 

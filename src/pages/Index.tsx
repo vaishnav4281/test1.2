@@ -1,18 +1,52 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Search, Database, FileText, Globe, Activity, Moon, Sun } from "lucide-react";
+import { Shield, Search, Database, FileText, Globe, Activity, Moon, Sun, CheckCircle, XCircle } from "lucide-react";
 import DomainAnalysisCard from "@/components/DomainAnalysisCard";
 import BulkScannerCard from "@/components/BulkScannerCard";
 import ResultsPanel from "@/components/ResultsPanel";
+import MetascraperResults from "@/components/MetascraperResults";
+import VirusTotalResults from "@/components/VirusTotalResults";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
   const [results, setResults] = useState([]);
+  const [metascraperResults, setMetascraperResults] = useState([]);
+  const [virusTotalResults, setVirusTotalResults] = useState([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  // const [apiStatus, setApiStatus] = useState({ backend: null, virustotal: null });
+  // API status check
+  // useEffect(() => {
+  //   const checkApis = async () => {
+  //     // Backend check
+  //     let backendUp = false;
+  //     try {
+  //       const backendUrl = import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com";
+  //       const res = await fetch(backendUrl + "/health", { method: "GET" });
+  //       backendUp = res.ok;
+  //     } catch {
+  //       backendUp = false;
+  //     }
+  //     // VirusTotal check
+  //     let vtUp = false;
+  //     try {
+  //       const vtKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
+  //       const vtRes = await fetch("https://www.virustotal.com/api/v3/domains/google.com", {
+  //         headers: { "x-apikey": vtKey },
+  //       });
+  //       vtUp = vtRes.ok;
+  //     } catch {
+  //       vtUp = false;
+  //     }
+  //     setApiStatus({ backend: backendUp, virustotal: vtUp });
+  //   };
+  //   checkApis();
+  //   const interval = setInterval(checkApis, 60000);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   useEffect(() => {
     // Check for saved theme preference or default to light mode
@@ -41,6 +75,14 @@ const Index = () => {
     setResults(prev => [newResult, ...prev]);
   };
 
+  const handleMetascraperResults = (newResult: any) => {
+    setMetascraperResults(prev => [newResult, ...prev]);
+  };
+
+  const handleVirusTotalResults = (newResult: any) => {
+    setVirusTotalResults(prev => [newResult, ...prev]);
+  };
+
   const handleBulkResults = (newResult: any) => {
     setResults(prev => [newResult, ...prev]);
   };
@@ -64,7 +106,40 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+           <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* API Status Indicator */} 
+              {/* <div className="flex items-center space-x-2 mr-2">
+                <span className="flex items-center space-x-1">
+                  <span className="relative group">
+                    {apiStatus.backend === true ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : apiStatus.backend === false ? (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <Activity className="h-4 w-4 text-yellow-500 animate-spin" />
+                    )}
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 rounded bg-slate-800 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap">
+                      {apiStatus.backend === true ? "Backend API Up" : apiStatus.backend === false ? "Backend API Down" : "Checking Backend API"}
+                    </span>
+                  </span>
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Backend</span>
+                </span> 
+                <span className="flex items-center space-x-1">
+                  <span className="relative group">
+                    {apiStatus.virustotal === true ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : apiStatus.virustotal === false ? (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <Activity className="h-4 w-4 text-yellow-500 animate-spin" />
+                    )}
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 rounded bg-slate-800 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap">
+                      {apiStatus.virustotal === true ? "VirusTotal API Up" : apiStatus.virustotal === false ? "VirusTotal API Down" : "Checking VirusTotal API"}
+                    </span>
+                  </span>
+                  <span className="text-xs text-slate-600 dark:text-slate-400">VirusTotal</span>
+                </span>
+              </div> */}
               <Button
                 onClick={toggleDarkMode}
                 variant="outline"
@@ -77,9 +152,9 @@ const Index = () => {
                   <Moon className="h-4 w-4 text-blue-600" />
                 )}
               </Button>
-              <div className="hidden sm:block text-sm text-slate-600 dark:text-slate-400">
-                Built by <span className="font-semibold bg-gradient-to-r from-red-600 to-blue-600 bg-clip-text text-transparent">Vaishnav K</span>
-              </div>
+              {/* <div className="hidden sm:block text-sm text-slate-600 dark:text-slate-400">
+                Built by <span className="font-semibold bg-gradient-to-r from-red-600 to-blue-600 bg-clip-text text-transparent">Vaishnav K & Sidharth M</span>
+              </div>*/}
             </div>
           </div>
         </div>
@@ -90,12 +165,12 @@ const Index = () => {
         {/* Features Overview */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-6 sm:mb-8">
           {[
-            { icon: Search, label: "WHOIS Lookup", color: "text-red-600", bg: "bg-red-100 dark:bg-red-950" },
-            { icon: Globe, label: "DNS Records", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
-            { icon: Database, label: "IP Geolocation", color: "text-red-500", bg: "bg-red-100 dark:bg-red-950" },
-            { icon: Shield, label: "Abuse Detection", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-950" },
-            { icon: Activity, label: "VPN Detection", color: "text-red-600", bg: "bg-red-100 dark:bg-red-950" },
-            { icon: FileText, label: "CSV Reports", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
+            { icon: Search, label: "WHOIS & Ownership", color: "text-red-600", bg: "bg-red-100 dark:bg-red-950" },
+            { icon: Globe, label: "DNS & Infra Map", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
+            { icon: Database, label: "IP • Geo • ISP", color: "text-red-500", bg: "bg-red-100 dark:bg-red-950" },
+            { icon: Shield, label: "Abuse Score (IPDB)", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-950" },
+            { icon: Activity, label: "VirusTotal Security", color: "text-red-600", bg: "bg-red-100 dark:bg-red-950" },
+            { icon: FileText, label: "Metadata & SEO", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
           ].map((feature, index) => (
             <Card key={index} className="text-center hover:shadow-xl transition-all duration-500 hover:scale-105 border-transparent hover:border-gradient-to-r hover:from-red-200 hover:to-blue-200 group animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
               <CardContent className="p-2 sm:p-4">
@@ -143,15 +218,47 @@ const Index = () => {
           {/* Scanner Panel */}
           <div className="xl:col-span-1 animate-slide-in-right">
             {activeTab === 'single' ? (
-              <DomainAnalysisCard onResults={handleSingleResults} />
+              <DomainAnalysisCard 
+                onResults={handleSingleResults} 
+                onMetascraperResults={handleMetascraperResults}
+                onVirusTotalResults={handleVirusTotalResults}
+              />
             ) : (
-              <BulkScannerCard onResults={handleBulkResults} />
+              <BulkScannerCard 
+                onResults={handleBulkResults}
+                onMetascraperResults={handleMetascraperResults}
+                onVirusTotalResults={handleVirusTotalResults}
+              />
             )}
           </div>
 
           {/* Results Panel */}
-          <div className="xl:col-span-2 animate-slide-in-right" style={{ animationDelay: '200ms' }}>
-            <ResultsPanel results={results} />
+          <div className="xl:col-span-2 space-y-4 sm:space-y-6 animate-slide-in-right" style={{ animationDelay: '200ms' }}>
+            {/* Backend Results */}
+            <ResultsPanel 
+              results={results} 
+              vtSummaryByDomain={useMemo(() => {
+                const map: Record<string, { reputation?: number; malicious?: number; suspicious?: number; harmless?: number; risk_level?: string; }> = {};
+                (virusTotalResults || []).forEach((r: any) => {
+                  if (!r || !r.domain) return;
+                  const stats = r.last_analysis_stats || {};
+                  map[r.domain] = {
+                    reputation: typeof r.reputation === 'number' ? r.reputation : undefined,
+                    malicious: typeof stats.malicious === 'number' ? stats.malicious : undefined,
+                    suspicious: typeof stats.suspicious === 'number' ? stats.suspicious : undefined,
+                    harmless: typeof stats.harmless === 'number' ? stats.harmless : undefined,
+                    risk_level: r.risk_level,
+                  };
+                });
+                return map;
+              }, [virusTotalResults])}
+            />
+            
+            {/* Metascraper Results */}
+            <MetascraperResults results={metascraperResults} />
+            
+            {/* VirusTotal Results */}
+            <VirusTotalResults results={virusTotalResults} />
           </div>
         </div>
       </main>

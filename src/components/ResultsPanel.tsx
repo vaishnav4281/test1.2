@@ -27,11 +27,20 @@ interface Result {
   timestamp: string;
 }
 
-interface ResultsPanelProps {
-  results: Result[];
+interface VtSummary {
+  reputation?: number;
+  malicious?: number;
+  suspicious?: number;
+  harmless?: number;
+  risk_level?: string;
 }
 
-const ResultsPanel = ({ results }: ResultsPanelProps) => {
+interface ResultsPanelProps {
+  results: Result[];
+  vtSummaryByDomain?: Record<string, VtSummary>;
+}
+
+const ResultsPanel = ({ results, vtSummaryByDomain }: ResultsPanelProps) => {
   const { toast } = useToast();
 
   const exportToCsv = () => {
@@ -47,31 +56,55 @@ const ResultsPanel = ({ results }: ResultsPanelProps) => {
     const headers = [
       "domain", "created", "expires", "domain_age", "registrar", 
       "name_servers", "dns_records", "asn", "abuse_score", "is_vpn_proxy",
-      "ip_address", "country", "region", "city", "longitude", "latitude", "isp", "timestamp"
+      "ip_address", "country", "region", "city", "longitude", "latitude", "isp",
+      // VirusTotal summary (optional)
+      "vt_reputation", "vt_malicious", "vt_suspicious", "vt_harmless", "vt_risk",
+      "timestamp"
     ];
     
+    const escapeCsv = (val: any) => {
+      const s = val === null || val === undefined ? '' : String(val);
+      if (/[",\n\r]/.test(s)) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    };
+
     const csvContent = [
       headers.join(","),
-      ...results.map(result => [
-        result.domain,
-        result.created,
-        result.expires,
-        result.domain_age,
-        result.registrar,
-        result.name_servers.join("; "),
-        result.dns_records || "-",
-        result.asn || "-",
-        result.abuse_score,
-        result.is_vpn_proxy,
-        result.ip_address,
-        result.country,
-        result.region || "-",
-        result.city || "-",
-        result.longitude || "-",
-        result.latitude || "-",
-        result.isp,
-        result.timestamp
-      ].join(","))
+      ...results.map(result => {
+        const vt = vtSummaryByDomain ? vtSummaryByDomain[result.domain] : undefined;
+        const vt_rep = vt?.reputation ?? "-";
+        const vt_mal = vt?.malicious ?? "-";
+        const vt_susp = vt?.suspicious ?? "-";
+        const vt_har = vt?.harmless ?? "-";
+        const vt_risk = vt?.risk_level ?? "-";
+        return [
+        escapeCsv(result.domain),
+        escapeCsv(result.created),
+        escapeCsv(result.expires),
+        escapeCsv(result.domain_age),
+        escapeCsv(result.registrar),
+        escapeCsv((result.name_servers || []).join("; ")),
+        escapeCsv(result.dns_records || "-"),
+        escapeCsv(result.asn || "-"),
+        escapeCsv(result.abuse_score),
+        escapeCsv(result.is_vpn_proxy),
+        escapeCsv(result.ip_address),
+        escapeCsv(result.country),
+        escapeCsv(result.region || "-"),
+        escapeCsv(result.city || "-"),
+        escapeCsv(result.longitude || "-"),
+        escapeCsv(result.latitude || "-"),
+        escapeCsv(result.isp),
+        escapeCsv(vt_rep),
+        escapeCsv(vt_mal),
+        escapeCsv(vt_susp),
+        escapeCsv(vt_har),
+        escapeCsv(vt_risk),
+        escapeCsv(result.timestamp)
+      ].join(",");
+      })
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -105,8 +138,8 @@ const ResultsPanel = ({ results }: ResultsPanelProps) => {
   };
 
   return (
-    <Card className="h-fit border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg">
-      <CardHeader className="bg-gradient-to-r from-red-600/10 to-blue-600/10 border-b border-red-200/50 dark:border-blue-800/50 p-4 sm:p-6">
+  <Card className="h-fit border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg max-h-[350px] sm:max-h-[400px] overflow-y-auto">
+  <CardHeader className="bg-gradient-to-r from-red-600/10 to-blue-600/10 border-b border-red-200/50 dark:border-blue-800/50 p-2 sm:p-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
           <CardTitle className="flex items-center space-x-2">
             <div className="p-2 bg-gradient-to-r from-red-600 to-blue-600 rounded-lg">
@@ -130,7 +163,7 @@ const ResultsPanel = ({ results }: ResultsPanelProps) => {
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-4 sm:p-6">
+  <CardContent className="p-2 sm:p-3">
         {results.length === 0 ? (
           <div className="text-center py-8 sm:py-12 text-slate-500 dark:text-slate-400">
             <div className="bg-gradient-to-r from-red-100 to-blue-100 dark:from-red-950/50 dark:to-blue-950/50 rounded-full w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 flex items-center justify-center">
