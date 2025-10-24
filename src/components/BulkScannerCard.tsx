@@ -61,18 +61,22 @@ const BulkScannerCard = ({ onResults, onMetascraperResults, onVirusTotalResults 
       const domain = domainList[i].trim();
 
       try {
-        const API_BASE = (() => {
-          const base = import.meta.env.VITE_API_BASE;
-          return base && /^https?:\/\//i.test(base) ? base : "https://whois-aoi.onrender.com";
-        })();
+        const whoisUrl = import.meta.env.DEV
+          ? `/api/whois/?domain=${encodeURIComponent(domain)}`
+          : `${(import.meta.env.VITE_API_BASE && /^https?:\/\//i.test(import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : "https://whois-aoi.onrender.com")}/whois/?domain=${encodeURIComponent(domain)}`;
         let response: Response;
-        try {
-          response = await fetchWithTimeout(`${API_BASE}/whois/?domain=${encodeURIComponent(domain)}`);
-        } catch (err: any) {
-          if (err.name === 'AbortError') {
-            throw new Error('Request timed out.');
+        // Simple retry for WHOIS fetch
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            response = await fetchWithTimeout(whoisUrl);
+            break;
+          } catch (err: any) {
+            if (err.name === 'AbortError') {
+              if (attempt === 1) throw new Error('Request timed out.');
+              continue;
+            }
+            if (attempt === 1) throw err;
           }
-          throw err;
         }
         if (!response.ok) {
           throw new Error(`API responded with status ${response.status}`);
@@ -279,61 +283,85 @@ const BulkScannerCard = ({ onResults, onMetascraperResults, onVirusTotalResults 
             });
           }
         }
-        // VirusTotal (optional) via serverless proxy
+        // VirusTotal (optional) direct/proxied client call (requires VITE_VIRUSTOTAL_API_KEY)
         if (onVirusTotalResults) {
-          try {
-            const vtResponse = await fetch(`/api/virustotal?domain=${encodeURIComponent(domain)}`);
-            if (vtResponse.ok) {
-              const vtData = await vtResponse.json();
-              const data = vtData.data?.attributes || {};
-              const virusTotalResult = {
-                id: Date.now() + i + 2,
-                domain: domain,
-                timestamp: new Date().toLocaleString(),
-                reputation: data.reputation || 0,
-                last_analysis_stats: data.last_analysis_stats || {},
-                total_votes: data.total_votes || {},
-                categories: data.categories || {},
-                popularity_ranks: data.popularity_ranks || {},
-                whois: data.whois || null,
-                whois_date: data.whois_date ? new Date(data.whois_date * 1000).toLocaleString() : null,
-                creation_date: data.creation_date ? new Date(data.creation_date * 1000).toLocaleString() : null,
-                last_update_date: data.last_update_date ? new Date(data.last_update_date * 1000).toLocaleString() : null,
-                last_modification_date: data.last_modification_date ? new Date(data.last_modification_date * 1000).toLocaleString() : null,
-                last_analysis_date: data.last_analysis_date ? new Date(data.last_analysis_date * 1000).toLocaleString() : null,
-                last_dns_records: data.last_dns_records || [],
-                last_dns_records_date: data.last_dns_records_date ? new Date(data.last_dns_records_date * 1000).toLocaleString() : null,
-                last_https_certificate: data.last_https_certificate || null,
-                last_https_certificate_date: data.last_https_certificate_date ? new Date(data.last_https_certificate_date * 1000).toLocaleString() : null,
-                tags: data.tags || [],
-                registrar: data.registrar || null,
-                jarm: data.jarm || null,
-                last_analysis_results: data.last_analysis_results || {},
-                malicious_score: data.last_analysis_stats?.malicious || 0,
-                suspicious_score: data.last_analysis_stats?.suspicious || 0,
-                harmless_score: data.last_analysis_stats?.harmless || 0,
-                undetected_score: data.last_analysis_stats?.undetected || 0,
-                risk_level: (() => {
-                  const malicious = data.last_analysis_stats?.malicious || 0;
-                  const suspicious = data.last_analysis_stats?.suspicious || 0;
-                  if (malicious > 5) return 'High';
-                  if (malicious > 0 || suspicious > 3) return 'Medium';
-                  if (suspicious > 0) return 'Low';
-                  return 'Clean';
-                })()
-              };
-              onVirusTotalResults(virusTotalResult);
-            } else {
-              throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
-            }
-          } catch (vtError: any) {
+          const vtKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
+          if (!vtKey) {
             onVirusTotalResults({
               id: Date.now() + i + 2,
               domain: domain,
               timestamp: new Date().toLocaleString(),
-              error: vtError.message || 'Failed to fetch VirusTotal data.'
+              error: 'VirusTotal disabled: missing API key (VITE_VIRUSTOTAL_API_KEY)'
             });
+          } else {
+            try {
+              const vtUrl = import.meta.env.DEV
+                ? `/api/vt/domains/${encodeURIComponent(domain)}`
+                : `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(domain)}`;
+              const headers: Record<string, string> = {};
+              if (!import.meta.env.DEV) {
+                headers['x-apikey'] = vtKey;
+              }
+              // Use timeout in dev (proxy path), direct fetch in prod
+              const vtResponse = import.meta.env.DEV
+                ? await fetchWithTimeout(vtUrl, 15000)
+                : await fetch(vtUrl, { headers });
+              if (vtResponse.ok) {
+                const vtData = await vtResponse.json();
+                const data = vtData.data?.attributes || {};
+                const virusTotalResult = {
+                  id: Date.now() + i + 2,
+                  domain: domain,
+                  timestamp: new Date().toLocaleString(),
+                  reputation: data.reputation || 0,
+                  last_analysis_stats: data.last_analysis_stats || {},
+                  total_votes: data.total_votes || {},
+                  categories: data.categories || {},
+                  popularity_ranks: data.popularity_ranks || {},
+                  whois: data.whois || null,
+                  whois_date: data.whois_date ? new Date(data.whois_date * 1000).toLocaleString() : null,
+                  creation_date: data.creation_date ? new Date(data.creation_date * 1000).toLocaleString() : null,
+                  last_update_date: data.last_update_date ? new Date(data.last_update_date * 1000).toLocaleString() : null,
+                  last_modification_date: data.last_modification_date ? new Date(data.last_modification_date * 1000).toLocaleString() : null,
+                  last_analysis_date: data.last_analysis_date ? new Date(data.last_analysis_date * 1000).toLocaleString() : null,
+                  last_dns_records: data.last_dns_records || [],
+                  last_dns_records_date: data.last_dns_records_date ? new Date(data.last_dns_records_date * 1000).toLocaleString() : null,
+                  last_https_certificate: data.last_https_certificate || null,
+                  last_https_certificate_date: data.last_https_certificate_date ? new Date(data.last_https_certificate_date * 1000).toLocaleString() : null,
+                  tags: data.tags || [],
+                  registrar: data.registrar || null,
+                  jarm: data.jarm || null,
+                  last_analysis_results: data.last_analysis_results || {},
+                  malicious_score: data.last_analysis_stats?.malicious || 0,
+                  suspicious_score: data.last_analysis_stats?.suspicious || 0,
+                  harmless_score: data.last_analysis_stats?.harmless || 0,
+                  undetected_score: data.last_analysis_stats?.undetected || 0,
+                  risk_level: (() => {
+                    const malicious = data.last_analysis_stats?.malicious || 0;
+                    const suspicious = data.last_analysis_stats?.suspicious || 0;
+                    if (malicious > 5) return 'High';
+                    if (malicious > 0 || suspicious > 3) return 'Medium';
+                    if (suspicious > 0) return 'Low';
+                    return 'Clean';
+                  })()
+                };
+                onVirusTotalResults(virusTotalResult);
+              } else {
+                throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
+              }
+            } catch (vtError: any) {
+              onVirusTotalResults({
+                id: Date.now() + i + 2,
+                domain: domain,
+                timestamp: new Date().toLocaleString(),
+                error: vtError.message || 'Failed to fetch VirusTotal data.'
+              });
+            }
           }
+        }
+        // Throttle between domains to avoid VT rate limits and proxy overload
+        if (import.meta.env.VITE_VIRUSTOTAL_API_KEY) {
+          await new Promise((r) => setTimeout(r, 1200));
         }
       } catch (error: any) {
         toast({
