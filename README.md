@@ -3,9 +3,6 @@
 
 # 🌍 Domain Scope — IP & Domain Intelligence Toolkit
 
-<a href="https://domain-scope-alpha.vercel.app"><img src="https://img.shields.io/website?down_color=red&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fdomain-scope-three.vercel.app&style=for-the-badge" alt="Live" /></a>
-<a href="https://whois-aoi.onrender.com"><img src="https://img.shields.io/badge/API-Render-blue?style=for-the-badge" alt="API" /></a>
-<a href="LICENSE"><img src="https://img.shields.io/github/license/vaishnav4281/Domain-scope?style=for-the-badge" alt="License" /></a>
 
 </div>
 
