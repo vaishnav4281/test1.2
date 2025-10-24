@@ -173,5 +173,6 @@ src/
 
 ## 📜 License
 
-MIT — free for personal and commercial use.
+MIT — free for personal and commercial use..
 
+# domain-it
