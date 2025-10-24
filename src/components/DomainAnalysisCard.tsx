@@ -366,7 +366,6 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
         });
       }
       
-<<<<<<< HEAD
       // Fetch VirusTotal data
       const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
       if (vtApiKey) {
