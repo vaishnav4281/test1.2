@@ -47,7 +47,6 @@
 ## 🚀 Live
 
 - UI: https://domain-scope-three.vercel.app
-- API: https://whois-aoi.onrender.com
 
 ---
 
