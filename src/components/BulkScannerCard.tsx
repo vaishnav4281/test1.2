@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 
 interface BulkScannerCardProps {
   onResults: (result: any) => void;
+  onMetascraperResults?: (result: any) => void;
+  onVirusTotalResults?: (result: any) => void;
 }
 
-const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
+const BulkScannerCard = ({ onResults, onMetascraperResults, onVirusTotalResults }: BulkScannerCardProps) => {
   const fetchWithTimeout = async (url: string, timeout = 15000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -117,7 +119,235 @@ const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
           }
         }
 
+        // Fetch abuse score if API key is present (to mirror single scan)
+        const abuseKey = import.meta.env.VITE_ABUSEIPDB_API_KEY;
+        if (abuseKey && result.ip_address !== "-") {
+          try {
+            const abuseRes = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${result.ip_address}&maxAgeInDays=365`, {
+              headers: {
+                Key: abuseKey,
+                Accept: 'application/json',
+              },
+            });
+            if (abuseRes.ok) {
+              const abuseData = await abuseRes.json();
+              result.abuse_score = abuseData.data?.abuseConfidenceScore ?? result.abuse_score;
+            }
+          } catch {}
+        }
+
         onResults(result);
+
+        // Metascraper (optional)
+        if (onMetascraperResults) {
+          try {
+            const targetUrl = `https://${domain}`;
+            const corsProxies = [
+              `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+              `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+              `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+            ];
+            let metascraperResponse: Response | null = null;
+            let lastError: any = null;
+            for (const proxyUrl of corsProxies) {
+              try {
+                metascraperResponse = await fetchWithTimeout(proxyUrl, 8000);
+                if (metascraperResponse.ok) break;
+              } catch (err) {
+                lastError = err;
+                continue;
+              }
+            }
+            if (!metascraperResponse || !metascraperResponse.ok) {
+              throw lastError || new Error('All CORS proxies failed');
+            }
+            const html = await metascraperResponse.text();
+            const metaData: any = {
+              id: Date.now() + i + 1,
+              domain: domain,
+              timestamp: new Date().toLocaleString()
+            };
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+            const twitterTitleMatch = html.match(/<meta[^>]*name=["']twitter:title["'][^>]*content=["']([^"']+)["']/i);
+            metaData.title = (ogTitleMatch?.[1] || twitterTitleMatch?.[1] || titleMatch?.[1] || '').trim();
+            const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+            const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+            const twitterDescMatch = html.match(/<meta[^>]*name=["']twitter:description["'][^>]*content=["']([^"']+)["']/i);
+            metaData.description = (ogDescMatch?.[1] || twitterDescMatch?.[1] || descMatch?.[1] || '').trim();
+            const keywordsMatch = html.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
+            if (keywordsMatch) metaData.keywords = keywordsMatch[1].trim();
+            const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+            const articleAuthorMatch = html.match(/<meta[^>]*property=["']article:author["'][^>]*content=["']([^"']+)["']/i);
+            if (authorMatch || articleAuthorMatch) metaData.author = (articleAuthorMatch?.[1] || authorMatch?.[1] || '').trim();
+            const langMatch = html.match(/<html[^>]*lang=["']([^"']+)["']/i);
+            const ogLocaleMatch = html.match(/<meta[^>]*property=["']og:locale["'][^>]*content=["']([^"']+)["']/i);
+            if (langMatch || ogLocaleMatch) metaData.lang = (langMatch?.[1] || ogLocaleMatch?.[1] || '').trim();
+            const publisherMatch = html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i);
+            if (publisherMatch) metaData.publisher = publisherMatch[1].trim();
+            const ogTypeMatch = html.match(/<meta[^>]*property=["']og:type["'][^>]*content=["']([^"']+)["']/i);
+            if (ogTypeMatch) metaData.type = ogTypeMatch[1].trim();
+            const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+            const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+            if (imageMatch || twitterImageMatch) metaData.image = (imageMatch?.[1] || twitterImageMatch?.[1] || '').trim();
+            const imageAltMatch = html.match(/<meta[^>]*property=["']og:image:alt["'][^>]*content=["']([^"']+)["']/i);
+            if (imageAltMatch) metaData.imageAlt = imageAltMatch[1].trim();
+            const ogUrlMatch = html.match(/<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']+)["']/i);
+            const canonicalMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i);
+            metaData.url = (ogUrlMatch?.[1] || canonicalMatch?.[1] || targetUrl).trim();
+            const twitterCardMatch = html.match(/<meta[^>]*name=["']twitter:card["'][^>]*content=["']([^"']+)["']/i);
+            if (twitterCardMatch) metaData.twitterCard = twitterCardMatch[1].trim();
+            const twitterSiteMatch = html.match(/<meta[^>]*name=["']twitter:site["'][^>]*content=["']([^"']+)["']/i);
+            if (twitterSiteMatch) metaData.twitterSite = twitterSiteMatch[1].trim();
+            const twitterCreatorMatch = html.match(/<meta[^>]*name=["']twitter:creator["'][^>]*content=["']([^"']+)["']/i);
+            if (twitterCreatorMatch) metaData.twitterCreator = twitterCreatorMatch[1].trim();
+            const publishedMatch = html.match(/<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i);
+            const dateMatch = html.match(/<meta[^>]*name=["']date["'][^>]*content=["']([^"']+)["']/i);
+            if (publishedMatch || dateMatch) metaData.date = (publishedMatch?.[1] || dateMatch?.[1] || '').trim();
+            const modifiedMatch = html.match(/<meta[^>]*property=["']article:modified_time["'][^>]*content=["']([^"']+)["']/i);
+            if (modifiedMatch) metaData.modifiedDate = modifiedMatch[1].trim();
+            const sectionMatch = html.match(/<meta[^>]*property=["']article:section["'][^>]*content=["']([^"']+)["']/i);
+            if (sectionMatch) metaData.category = sectionMatch[1].trim();
+            const articleTagsMatches = html.match(/<meta[^>]*property=["']article:tag["'][^>]*content=["']([^"']+)["']/gi);
+            if (articleTagsMatches) {
+              metaData.tags = articleTagsMatches.map(tag => {
+                const match = tag.match(/content=["']([^"']+)["']/i);
+                return match ? match[1] : '';
+              }).filter(Boolean).join(', ');
+            }
+            const faviconMatch = html.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
+            if (faviconMatch) {
+              const faviconUrl = faviconMatch[1].trim();
+              metaData.favicon = faviconUrl.startsWith('http') ? faviconUrl : `https://${domain}${faviconUrl.startsWith('/') ? '' : '/'}${faviconUrl}`;
+            }
+            const appleTouchMatch = html.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
+            if (appleTouchMatch) {
+              const appleUrl = appleTouchMatch[1].trim();
+              metaData.logo = appleUrl.startsWith('http') ? appleUrl : `https://${domain}${appleUrl.startsWith('/') ? '' : '/'}${appleUrl}`;
+            }
+            const robotsMatch = html.match(/<meta[^>]*name=["']robots["'][^>]*content=["']([^"']+)["']/i);
+            if (robotsMatch) metaData.robots = robotsMatch[1].trim();
+            const viewportMatch = html.match(/<meta[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i);
+            if (viewportMatch) metaData.viewport = viewportMatch[1].trim();
+            const themeColorMatch = html.match(/<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["']/i);
+            if (themeColorMatch) metaData.themeColor = themeColorMatch[1].trim();
+            const charsetMatch = html.match(/<meta[^>]*charset=["']?([^"'\s>]+)["']?/i);
+            if (charsetMatch) metaData.charset = charsetMatch[1].trim();
+            const generatorMatch = html.match(/<meta[^>]*name=["']generator["'][^>]*content=["']([^"']+)["']/i);
+            if (generatorMatch) metaData.generator = generatorMatch[1].trim();
+            const rssFeedMatch = html.match(/<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["']([^"']+)["']/i);
+            if (rssFeedMatch) {
+              const rssUrl = rssFeedMatch[1].trim();
+              metaData.rssFeed = rssUrl.startsWith('http') ? rssUrl : `https://${domain}${rssUrl.startsWith('/') ? '' : '/'}${rssUrl}`;
+            }
+            const atomFeedMatch = html.match(/<link[^>]*type=["']application\/atom\+xml["'][^>]*href=["']([^"']+)["']/i);
+            if (atomFeedMatch) {
+              const atomUrl = atomFeedMatch[1].trim();
+              metaData.atomFeed = atomUrl.startsWith('http') ? atomUrl : `https://${domain}${atomUrl.startsWith('/') ? '' : '/'}${atomUrl}`;
+            }
+            const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+            if (jsonLdMatches) {
+              try {
+                const jsonLdData = jsonLdMatches.map(script => {
+                  const content = script.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+                  if (content && content[1]) {
+                    try { return JSON.parse(content[1]); } catch { return null; }
+                  }
+                  return null;
+                }).filter(Boolean);
+                if (jsonLdData.length > 0) {
+                  metaData.jsonLd = jsonLdData;
+                  const firstSchema = Array.isArray(jsonLdData[0]) ? jsonLdData[0][0] : jsonLdData[0];
+                  if (firstSchema) {
+                    if (firstSchema['@type']) metaData.schemaType = firstSchema['@type'];
+                    if (firstSchema.name && !metaData.title) metaData.title = firstSchema.name;
+                    if (firstSchema.description && !metaData.description) metaData.description = firstSchema.description;
+                  }
+                }
+              } catch (e) { /* ignore parse errors */ }
+            }
+            const totalFields = 30;
+            const filledFields = Object.keys(metaData).filter(key => key !== 'id' && key !== 'domain' && key !== 'timestamp' && key !== 'jsonLd' && metaData[key]).length;
+            metaData.completenessScore = Math.round((filledFields / totalFields) * 100);
+            onMetascraperResults(metaData);
+          } catch (metaError: any) {
+            onMetascraperResults({
+              id: Date.now() + i + 1,
+              domain: domain,
+              timestamp: new Date().toLocaleString(),
+              error: metaError?.message || 'Failed to fetch metadata'
+            });
+          }
+        }
+
+        // VirusTotal (optional)
+        if (onVirusTotalResults) {
+          const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
+          if (vtApiKey) {
+            try {
+              const vtResponse = await fetch(`https://www.virustotal.com/api/v3/domains/${domain}`, {
+                headers: { 'x-apikey': vtApiKey }
+              });
+              if (vtResponse.ok) {
+                const vtData = await vtResponse.json();
+                const data = vtData.data?.attributes || {};
+                const virusTotalResult = {
+                  id: Date.now() + i + 2,
+                  domain: domain,
+                  timestamp: new Date().toLocaleString(),
+                  reputation: data.reputation || 0,
+                  last_analysis_stats: data.last_analysis_stats || {},
+                  total_votes: data.total_votes || {},
+                  categories: data.categories || {},
+                  popularity_ranks: data.popularity_ranks || {},
+                  whois: data.whois || null,
+                  whois_date: data.whois_date ? new Date(data.whois_date * 1000).toLocaleString() : null,
+                  creation_date: data.creation_date ? new Date(data.creation_date * 1000).toLocaleString() : null,
+                  last_update_date: data.last_update_date ? new Date(data.last_update_date * 1000).toLocaleString() : null,
+                  last_modification_date: data.last_modification_date ? new Date(data.last_modification_date * 1000).toLocaleString() : null,
+                  last_analysis_date: data.last_analysis_date ? new Date(data.last_analysis_date * 1000).toLocaleString() : null,
+                  last_dns_records: data.last_dns_records || [],
+                  last_dns_records_date: data.last_dns_records_date ? new Date(data.last_dns_records_date * 1000).toLocaleString() : null,
+                  last_https_certificate: data.last_https_certificate || null,
+                  last_https_certificate_date: data.last_https_certificate_date ? new Date(data.last_https_certificate_date * 1000).toLocaleString() : null,
+                  tags: data.tags || [],
+                  registrar: data.registrar || null,
+                  jarm: data.jarm || null,
+                  last_analysis_results: data.last_analysis_results || {},
+                  malicious_score: data.last_analysis_stats?.malicious || 0,
+                  suspicious_score: data.last_analysis_stats?.suspicious || 0,
+                  harmless_score: data.last_analysis_stats?.harmless || 0,
+                  undetected_score: data.last_analysis_stats?.undetected || 0,
+                  risk_level: (() => {
+                    const malicious = data.last_analysis_stats?.malicious || 0;
+                    const suspicious = data.last_analysis_stats?.suspicious || 0;
+                    if (malicious > 5) return 'High';
+                    if (malicious > 0 || suspicious > 3) return 'Medium';
+                    if (suspicious > 0) return 'Low';
+                    return 'Clean';
+                  })()
+                };
+                onVirusTotalResults(virusTotalResult);
+              } else {
+                throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
+              }
+            } catch (vtError: any) {
+              onVirusTotalResults({
+                id: Date.now() + i + 2,
+                domain: domain,
+                timestamp: new Date().toLocaleString(),
+                error: vtError.message || 'Failed to fetch VirusTotal data.'
+              });
+            }
+          } else {
+            onVirusTotalResults({
+              id: Date.now() + i + 2,
+              domain: domain,
+              timestamp: new Date().toLocaleString(),
+              error: 'VirusTotal API key not configured. Add VITE_VIRUSTOTAL_API_KEY to .env file.'
+            });
+          }
+        }
       } catch (error: any) {
         toast({
           title: `Scan failed for ${domain}`,
@@ -127,9 +357,6 @@ const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
       }
 
       setScanProgress(((i + 1) / domainList.length) * 100);
-
-      // Optional small delay between requests to avoid overwhelming the API
-      await new Promise((r) => setTimeout(r, 300));
     }
 
     setIsScanning(false);
@@ -217,7 +444,7 @@ const BulkScannerCard = ({ onResults }: BulkScannerCardProps) => {
         <div className="text-xs text-slate-600 dark:text-slate-400 bg-gradient-to-r from-blue-50 to-red-50 dark:from-blue-950/50 dark:to-red-950/50 p-4 rounded-xl border border-blue-200/50 dark:border-red-800/50">
           <p className="font-semibold mb-2 bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">Bulk scan features:</p>
           <ul className="space-y-1">
-            <li className="hover:text-blue-600 dark:hover:text-red-400 transition-colors duration-300">• Process up to 1000 domains</li>
+            <li className="hover:text-blue-600 dark:hover:text-red-400 transition-colors duration-300">• Bulk Scanning via Text Imports</li>
             <li className="hover:text-red-600 dark:hover:text-blue-400 transition-colors duration-300">• Real-time progress tracking</li>
             <li className="hover:text-blue-600 dark:hover:text-red-400 transition-colors duration-300">• Failed lookup logging</li>
             <li className="hover:text-red-600 dark:hover:text-blue-400 transition-colors duration-300">• CSV export with domain age</li>
