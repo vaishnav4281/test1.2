@@ -44,15 +44,22 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
     setIsScanning(true);
     
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com";
+      const whoisUrl = import.meta.env.DEV
+        ? `/api/whois/?domain=${encodeURIComponent(domain.trim())}`
+        : `${(import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com")}/whois/?domain=${encodeURIComponent(domain.trim())}`;
       let response: Response;
-      try {
-        response = await fetchWithTimeout(`${API_BASE}/whois/?domain=${encodeURIComponent(domain.trim())}`);
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          throw new Error('Request timed out. Please try again later.');
+      // Simple retry for WHOIS fetch
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await fetchWithTimeout(whoisUrl);
+          break;
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            if (attempt === 1) throw new Error('Request timed out. Please try again later.');
+            continue;
+          }
+          if (attempt === 1) throw err;
         }
-        throw err;
       }
       if (!response.ok) {
         throw new Error(`API responded with status ${response.status}`);
@@ -370,11 +377,14 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
       const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
       if (vtApiKey) {
         try {
-          const vtResponse = await fetch(`https://www.virustotal.com/api/v3/domains/${domain.trim()}`, {
-            headers: {
-              'x-apikey': vtApiKey
-            }
-          });
+          const vtUrl = import.meta.env.DEV
+            ? `/api/vt/domains/${encodeURIComponent(domain.trim())}`
+            : `https://www.virustotal.com/api/v3/domains/${domain.trim()}`;
+          const headers: Record<string, string> = {};
+          if (!import.meta.env.DEV) {
+            headers['x-apikey'] = vtApiKey;
+          }
+          const vtResponse = await fetch(vtUrl, { headers });
           
           if (vtResponse.ok) {
             const vtData = await vtResponse.json();
@@ -457,6 +467,13 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
             error: vtError.message || 'Failed to fetch VirusTotal data.'
           });
         }
+      } else {
+        onVirusTotalResults({
+          id: Date.now() + 2,
+          domain: domain.trim(),
+          timestamp: new Date().toLocaleString(),
+          error: 'VirusTotal disabled: missing API key (VITE_VIRUSTOTAL_API_KEY)'
+        });
       }
       setIsScanning(false);
       setDomain("");

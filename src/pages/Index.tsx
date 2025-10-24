@@ -170,7 +170,7 @@ const Index = () => {
             { icon: Database, label: "IP • Geo • ISP", color: "text-red-500", bg: "bg-red-100 dark:bg-red-950" },
             { icon: Shield, label: "Abuse Score (IPDB)", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-950" },
             { icon: Activity, label: "VirusTotal Security", color: "text-red-600", bg: "bg-red-100 dark:bg-red-950" },
-            { icon: FileText, label: "Metadata & SEO", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
+            { icon: FileText, label: "Metadata", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-950" },
           ].map((feature, index) => (
             <Card key={index} className="text-center hover:shadow-xl transition-all duration-500 hover:scale-105 border-transparent hover:border-gradient-to-r hover:from-red-200 hover:to-blue-200 group animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
               <CardContent className="p-2 sm:p-4">
