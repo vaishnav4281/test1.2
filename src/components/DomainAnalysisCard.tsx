@@ -44,9 +44,7 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
     setIsScanning(true);
     
     try {
-      const whoisUrl = import.meta.env.DEV
-        ? `/api/whois/?domain=${encodeURIComponent(domain.trim())}`
-        : `${(import.meta.env.VITE_API_BASE || "https://whois-aoi.onrender.com")}/whois/?domain=${encodeURIComponent(domain.trim())}`;
+      const whoisUrl = `/api/whois/?domain=${encodeURIComponent(domain.trim())}`;
       let response: Response;
       // Simple retry for WHOIS fetch
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -86,170 +84,76 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
         timestamp: new Date().toLocaleString(),
       };
 
-      // Enrich with ISP info and abuse score if possible
-      if (result.ip_address !== "-" && result.isp === "-") {
-        try {
-          const ipInfoRes = await fetch(`https://ipapi.co/${result.ip_address}/json/`);
-          if (ipInfoRes.ok) {
-            const ipInfo = await ipInfoRes.json();
-            result.isp = ipInfo.org || ipInfo.asn_org || "-";
-          }
-        } catch {}
-
-        // Fallback to ipwho.is if still not populated
-        if (result.isp === "-") {
-          try {
-            const whoRes = await fetch(`https://ipwho.is/${result.ip_address}`);
-            if (whoRes.ok) {
-              const whoData = await whoRes.json();
-              result.isp = whoData.connection?.isp || whoData.org || "-";
-            }
-          } catch {}
-        }
-      }
-
-      // Fetch abuse score
-      const abuseKey = import.meta.env.VITE_ABUSEIPDB_API_KEY;
-      if (abuseKey && result.ip_address !== "-") {
-        try {
-          const abuseRes = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${result.ip_address}&maxAgeInDays=365`, {
-            headers: {
-              Key: abuseKey,
-              Accept: 'application/json',
-            },
-          });
-          if (abuseRes.ok) {
-            const abuseData = await abuseRes.json();
-            result.abuse_score = abuseData.data?.abuseConfidenceScore ?? result.abuse_score;
-          }
-        } catch {}
-      }
+      // Skipping ISP enrichment and AbuseIPDB in the blocking path to speed up single scan
 
       onResults(result);
       
-      // Fetch Metascraper data using CORS proxy with fallbacks
-      try {
-        const targetUrl = `https://${domain.trim()}`;
-        
-        // Multiple CORS proxy options (will try each until one works)
-        const corsProxies = [
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-        ];
-        
-        let metascraperResponse: Response | null = null;
-        let lastError: any = null;
-        
-        // Try each proxy until one succeeds
-        for (const proxyUrl of corsProxies) {
-          try {
-            metascraperResponse = await fetchWithTimeout(proxyUrl, 8000);
-            if (metascraperResponse.ok) {
-              break; // Success! Stop trying other proxies
+      // Kick off Metascraper in background (non-blocking)
+      void (async () => {
+        try {
+          const targetUrl = `https://${domain.trim()}`;
+          const corsProxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+          ];
+          let metascraperResponse: Response | null = null;
+          let lastError: any = null;
+          for (const proxyUrl of corsProxies) {
+            try {
+              metascraperResponse = await fetchWithTimeout(proxyUrl, 8000);
+              if (metascraperResponse.ok) break;
+            } catch (err) {
+              lastError = err;
+              continue;
             }
-          } catch (err) {
-            lastError = err;
-            continue; // Try next proxy
           }
-        }
-        
-        if (!metascraperResponse || !metascraperResponse.ok) {
-          throw lastError || new Error('All CORS proxies failed');
-        }
-        
-        if (metascraperResponse.ok) {
+          if (!metascraperResponse || !metascraperResponse.ok) {
+            throw lastError || new Error('All CORS proxies failed');
+          }
           const html = await metascraperResponse.text();
-          
-          // Extract comprehensive metadata from HTML
-          const metaData: any = {
-            id: Date.now() + 1,
-            domain: domain.trim(),
-            timestamp: new Date().toLocaleString()
-          };
-          
-          // === BASIC META TAGS ===
-          
-          // Title (multiple sources)
+          const metaData: any = { id: Date.now() + 1, domain: domain.trim(), timestamp: new Date().toLocaleString() };
           const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
           const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
           const twitterTitleMatch = html.match(/<meta[^>]*name=["']twitter:title["'][^>]*content=["']([^"']+)["']/i);
           metaData.title = (ogTitleMatch?.[1] || twitterTitleMatch?.[1] || titleMatch?.[1] || '').trim();
-          
-          // Description (multiple sources)
           const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
           const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
           const twitterDescMatch = html.match(/<meta[^>]*name=["']twitter:description["'][^>]*content=["']([^"']+)["']/i);
           metaData.description = (ogDescMatch?.[1] || twitterDescMatch?.[1] || descMatch?.[1] || '').trim();
-          
-          // Keywords
           const keywordsMatch = html.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
           if (keywordsMatch) metaData.keywords = keywordsMatch[1].trim();
-          
-          // Author
           const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
           const articleAuthorMatch = html.match(/<meta[^>]*property=["']article:author["'][^>]*content=["']([^"']+)["']/i);
           if (authorMatch || articleAuthorMatch) metaData.author = (articleAuthorMatch?.[1] || authorMatch?.[1] || '').trim();
-          
-          // Language
           const langMatch = html.match(/<html[^>]*lang=["']([^"']+)["']/i);
           const ogLocaleMatch = html.match(/<meta[^>]*property=["']og:locale["'][^>]*content=["']([^"']+)["']/i);
           if (langMatch || ogLocaleMatch) metaData.lang = (langMatch?.[1] || ogLocaleMatch?.[1] || '').trim();
-          
-          // === OPEN GRAPH TAGS ===
-          
-          // Publisher / Site Name
           const publisherMatch = html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i);
           if (publisherMatch) metaData.publisher = publisherMatch[1].trim();
-          
-          // OG Type (website, article, product, etc.)
           const ogTypeMatch = html.match(/<meta[^>]*property=["']og:type["'][^>]*content=["']([^"']+)["']/i);
           if (ogTypeMatch) metaData.type = ogTypeMatch[1].trim();
-          
-          // OG Image
           const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
           const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
           if (imageMatch || twitterImageMatch) metaData.image = (imageMatch?.[1] || twitterImageMatch?.[1] || '').trim();
-          
-          // OG Image Alt
           const imageAltMatch = html.match(/<meta[^>]*property=["']og:image:alt["'][^>]*content=["']([^"']+)["']/i);
           if (imageAltMatch) metaData.imageAlt = imageAltMatch[1].trim();
-          
-          // OG URL (canonical)
           const ogUrlMatch = html.match(/<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']+)["']/i);
           const canonicalMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i);
           metaData.url = (ogUrlMatch?.[1] || canonicalMatch?.[1] || targetUrl).trim();
-          
-          // === TWITTER CARD TAGS ===
-          
-          // Twitter Card Type
           const twitterCardMatch = html.match(/<meta[^>]*name=["']twitter:card["'][^>]*content=["']([^"']+)["']/i);
           if (twitterCardMatch) metaData.twitterCard = twitterCardMatch[1].trim();
-          
-          // Twitter Site
           const twitterSiteMatch = html.match(/<meta[^>]*name=["']twitter:site["'][^>]*content=["']([^"']+)["']/i);
           if (twitterSiteMatch) metaData.twitterSite = twitterSiteMatch[1].trim();
-          
-          // Twitter Creator
           const twitterCreatorMatch = html.match(/<meta[^>]*name=["']twitter:creator["'][^>]*content=["']([^"']+)["']/i);
           if (twitterCreatorMatch) metaData.twitterCreator = twitterCreatorMatch[1].trim();
-          
-          // === ARTICLE/BLOG META ===
-          
-          // Published Date
           const publishedMatch = html.match(/<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i);
           const dateMatch = html.match(/<meta[^>]*name=["']date["'][^>]*content=["']([^"']+)["']/i);
           if (publishedMatch || dateMatch) metaData.date = (publishedMatch?.[1] || dateMatch?.[1] || '').trim();
-          
-          // Modified Date
           const modifiedMatch = html.match(/<meta[^>]*property=["']article:modified_time["'][^>]*content=["']([^"']+)["']/i);
           if (modifiedMatch) metaData.modifiedDate = modifiedMatch[1].trim();
-          
-          // Article Section/Category
           const sectionMatch = html.match(/<meta[^>]*property=["']article:section["'][^>]*content=["']([^"']+)["']/i);
           if (sectionMatch) metaData.category = sectionMatch[1].trim();
-          
-          // Article Tags
           const articleTagsMatches = html.match(/<meta[^>]*property=["']article:tag["'][^>]*content=["']([^"']+)["']/gi);
           if (articleTagsMatches) {
             metaData.tags = articleTagsMatches.map(tag => {
@@ -257,82 +161,49 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
               return match ? match[1] : '';
             }).filter(Boolean).join(', ');
           }
-          
-          // === ICONS & LOGOS ===
-          
-          // Favicon
           const faviconMatch = html.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
           if (faviconMatch) {
             const faviconUrl = faviconMatch[1].trim();
             metaData.favicon = faviconUrl.startsWith('http') ? faviconUrl : `https://${domain.trim()}${faviconUrl.startsWith('/') ? '' : '/'}${faviconUrl}`;
           }
-          
-          // Apple Touch Icon
           const appleTouchMatch = html.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
           if (appleTouchMatch) {
             const appleUrl = appleTouchMatch[1].trim();
             metaData.logo = appleUrl.startsWith('http') ? appleUrl : `https://${domain.trim()}${appleUrl.startsWith('/') ? '' : '/'}${appleUrl}`;
           }
-          
-          // === TECHNICAL META ===
-          
-          // Robots
           const robotsMatch = html.match(/<meta[^>]*name=["']robots["'][^>]*content=["']([^"']+)["']/i);
           if (robotsMatch) metaData.robots = robotsMatch[1].trim();
-          
-          // Viewport
           const viewportMatch = html.match(/<meta[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i);
           if (viewportMatch) metaData.viewport = viewportMatch[1].trim();
-          
-          // Theme Color
           const themeColorMatch = html.match(/<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["']/i);
           if (themeColorMatch) metaData.themeColor = themeColorMatch[1].trim();
-          
-          // Charset
           const charsetMatch = html.match(/<meta[^>]*charset=["']?([^"'\s>]+)["']?/i);
           if (charsetMatch) metaData.charset = charsetMatch[1].trim();
-          
-          // Generator (CMS/Framework)
           const generatorMatch = html.match(/<meta[^>]*name=["']generator["'][^>]*content=["']([^"']+)["']/i);
           if (generatorMatch) metaData.generator = generatorMatch[1].trim();
-          
-          // === FEEDS & ALTERNATE LINKS ===
-          
-          // RSS Feed
           const rssFeedMatch = html.match(/<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["']([^"']+)["']/i);
           if (rssFeedMatch) {
             const rssUrl = rssFeedMatch[1].trim();
             metaData.rssFeed = rssUrl.startsWith('http') ? rssUrl : `https://${domain.trim()}${rssUrl.startsWith('/') ? '' : '/'}${rssUrl}`;
           }
-          
-          // Atom Feed
           const atomFeedMatch = html.match(/<link[^>]*type=["']application\/atom\+xml["'][^>]*href=["']([^"']+)["']/i);
           if (atomFeedMatch) {
             const atomUrl = atomFeedMatch[1].trim();
             metaData.atomFeed = atomUrl.startsWith('http') ? atomUrl : `https://${domain.trim()}${atomUrl.startsWith('/') ? '' : '/'}${atomUrl}`;
           }
-          
-          // === SCHEMA.ORG / JSON-LD ===
-          
-          // Extract JSON-LD data
+          // JSON-LD
           const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
           if (jsonLdMatches) {
             try {
               const jsonLdData = jsonLdMatches.map(script => {
                 const content = script.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
                 if (content && content[1]) {
-                  try {
-                    return JSON.parse(content[1]);
-                  } catch {
-                    return null;
-                  }
+                  try { return JSON.parse(content[1]); } catch { return null; }
                 }
                 return null;
               }).filter(Boolean);
-              
               if (jsonLdData.length > 0) {
                 metaData.jsonLd = jsonLdData;
-                // Extract common schema.org fields
                 const firstSchema = Array.isArray(jsonLdData[0]) ? jsonLdData[0][0] : jsonLdData[0];
                 if (firstSchema) {
                   if (firstSchema['@type']) metaData.schemaType = firstSchema['@type'];
@@ -340,57 +211,28 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
                   if (firstSchema.description && !metaData.description) metaData.description = firstSchema.description;
                 }
               }
-            } catch (e) {
-              console.log('JSON-LD parse error:', e);
-            }
+            } catch (e) { /* ignore */ }
           }
-          
-          // Calculate metadata completeness score
           const totalFields = 30;
-          const filledFields = Object.keys(metaData).filter(key => 
-            key !== 'id' && key !== 'domain' && key !== 'timestamp' && key !== 'jsonLd' && metaData[key]
-          ).length;
+          const filledFields = Object.keys(metaData).filter(key => key !== 'id' && key !== 'domain' && key !== 'timestamp' && key !== 'jsonLd' && metaData[key]).length;
           metaData.completenessScore = Math.round((filledFields / totalFields) * 100);
-          
           onMetascraperResults(metaData);
-        } else {
-          throw new Error(`HTTP ${metascraperResponse.status}: Unable to fetch page`);
-        }
-      } catch (metaError: any) {
-        console.error('Metascraper error:', metaError);
-        // Create error result with helpful message
-        const errorMessage = metaError.name === 'AbortError' 
-          ? 'Request timed out while fetching metadata (try again or website may be slow)' 
-          : metaError.message?.includes('CORS') || metaError.message?.includes('fetch')
-            ? 'Unable to fetch page metadata. The website may block scraping or all CORS proxies are currently unavailable.'
+        } catch (metaError: any) {
+          const errorMessage = metaError.name === 'AbortError'
+            ? 'Request timed out while fetching metadata (try again or website may be slow)'
             : metaError.message || 'Failed to fetch metadata';
-            
-        onMetascraperResults({
-          id: Date.now() + 1,
-          domain: domain.trim(),
-          timestamp: new Date().toLocaleString(),
-          error: errorMessage
-        });
-      }
+          onMetascraperResults({ id: Date.now() + 1, domain: domain.trim(), timestamp: new Date().toLocaleString(), error: errorMessage });
+        }
+      })();
       
-      // Fetch VirusTotal data
-      const vtApiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
-      if (vtApiKey) {
+      // Kick off VirusTotal in background (non-blocking)
+      void (async () => {
         try {
-          const vtUrl = import.meta.env.DEV
-            ? `/api/vt/domains/${encodeURIComponent(domain.trim())}`
-            : `https://www.virustotal.com/api/v3/domains/${domain.trim()}`;
-          const headers: Record<string, string> = {};
-          if (!import.meta.env.DEV) {
-            headers['x-apikey'] = vtApiKey;
-          }
-          const vtResponse = await fetch(vtUrl, { headers });
-          
+          const vtUrl = `/api/vt/domains/${encodeURIComponent(domain.trim())}`;
+          const vtResponse = await fetch(vtUrl);
           if (vtResponse.ok) {
             const vtData = await vtResponse.json();
             const data = vtData.data?.attributes || {};
-            
-            // Extract comprehensive VirusTotal information
             const virusTotalResult = {
               id: Date.now() + 2,
               domain: domain.trim(),
@@ -459,22 +301,9 @@ const DomainAnalysisCard = ({ onResults, onMetascraperResults, onVirusTotalResul
             throw new Error(`VirusTotal API responded with status ${vtResponse.status}`);
           }
         } catch (vtError: any) {
-          console.error('VirusTotal error:', vtError);
-          onVirusTotalResults({
-            id: Date.now() + 2,
-            domain: domain.trim(),
-            timestamp: new Date().toLocaleString(),
-            error: vtError.message || 'Failed to fetch VirusTotal data.'
-          });
+          onVirusTotalResults({ id: Date.now() + 2, domain: domain.trim(), timestamp: new Date().toLocaleString(), error: vtError.message || 'Failed to fetch VirusTotal data.' });
         }
-      } else {
-        onVirusTotalResults({
-          id: Date.now() + 2,
-          domain: domain.trim(),
-          timestamp: new Date().toLocaleString(),
-          error: 'VirusTotal disabled: missing API key (VITE_VIRUSTOTAL_API_KEY)'
-        });
-      }
+      })();
       setIsScanning(false);
       setDomain("");
 
