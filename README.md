@@ -4,7 +4,7 @@
 # 🌐 **Domain Scope**
 ### 🧠 Advanced Domain & IP Intelligence Toolkit
 
-![Domain Scope Banner](https://via.placeholder.com/1000x250?text=Domain+Scope+-+Advanced+Domain+Intelligence+Toolkit)
+<img width="720" height="1289" alt="domain scope 1" src="https://github.com/user-attachments/assets/ca970ccd-d824-460b-afd6-caf7523ca9a8" />
 
 [![React](https://img.shields.io/badge/Frontend-React-blue?logo=react)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Bundler-Vite-8B5CF6?logo=vite)](https://vitejs.dev/)
@@ -44,7 +44,8 @@ It combines data from multiple sources and APIs into a structured, interactive U
 
 | Dashboard | Metadata Tabs | VirusTotal Panel |
 |------------|----------------|------------------|
-| ![Dashboard](https://via.placeholder.com/400x230?text=Dashboard+Preview) | ![Metadata](https://via.placeholder.com/400x230?text=Metadata+Tabs) | ![VirusTotal](https://via.placeholder.com/400x230?text=VirusTotal+Panel) |
+|<img width="1440" height="1024" alt="464908732-03e08e4a-32c6-4700-93bb-d89c464a2bac" src="https://github.com/user-attachments/assets/2009d725-c480-43f3-9575-1b64fe198ff7" />
+) | ![Metadata](https://via.placeholder.com/400x230?text=Metadata+Tabs) | ![VirusTotal](https://via.placeholder.com/400x230?text=VirusTotal+Panel) |
 
 ---
 
@@ -216,10 +217,7 @@ src/
 ✨ **Domain Scope**
 Investigate. Analyze. Understand.
 Built with ⚡ Vite, 💙 React, and ❤️ Passion.
-
-![Footer Banner](https://via.placeholder.com/800x200?text=Domain+Scope+-+Domain+Intelligence+Toolkit)
+<img width="720" height="1289" alt="domain scope 1" src="https://github.com/user-attachments/assets/ca970ccd-d824-460b-afd6-caf7523ca9a8" />
 
 </div>
 
-Would you like me to make a **dark-themed banner (image)** for this README (with your project name “Domain Scope”) to use at the top and bottom?
-It’ll make your GitHub page look 10× more professional.
